@@ -1,0 +1,45 @@
+go to cdsapi.Client()
+
+go to get_url_key_verify(url, key, None)
+
+then paste this instead :
+
+def get_url_key_verify(url, key, verify):
+    import pandas as pd
+    inform = pd.read_csv('cds_api.txt', sep=" ", header=None)
+    try:
+        inform = pd.read_csv('cds_api.txt', sep=" ", header=None)
+        inform[1] = inform[1].astype('str')
+        inform = inform.set_index(0)
+        inform_dict = inform.to_dict()
+        print('Done_loading')
+    except:
+        print("Need cds_api.txt")
+    if url is None:
+        # url = os.environ.get("CDSAPI_URL")
+        url = inform_dict[1]['url:']
+    if key is None:
+        # key = os.environ.get("CDSAPI_KEY")
+        key = inform_dict[1]['key:']
+    dotrc = os.environ.get("CDSAPI_RC", os.path.expanduser("~/.cdsapirc"))
+
+    if url is None or key is None:
+        if os.path.exists(dotrc):
+            config = read_config(dotrc)
+
+            if key is None:
+                key = config.get("key")
+
+            if url is None:
+                url = config.get("url")
+
+            if verify is None:
+                verify = bool(int(config.get("verify", 1)))
+
+    if url is None or key is None or key is None:
+        raise Exception("Missing/incomplete configuration file: %s" % (dotrc))
+
+    # If verify is still None, then we set to default value of True
+    if verify is None:
+        verify = True
+    return url, key, verify
