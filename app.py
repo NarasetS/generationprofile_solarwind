@@ -3,10 +3,13 @@ from dash import Dash, html, Output, Input, State
 from dash.exceptions import PreventUpdate
 from dash_extensions.javascript import assign
 import dash_core_components as dcc
+import dash_ag_grid as dag
 import geopandas as gpd
+import geojson
 import pandas as pd
 import base64
 import io
+from shapely import wkt
 
 # Create example app.
 app = Dash(prevent_initial_callbacks=True)
@@ -36,7 +39,17 @@ app.layout = html.Div([
         dl.FeatureGroup([
             dl.EditControl(id="edit_control")]),
         dl.GeoJSON(id='geojson'),
+        dl.GeoJSON(id='geojson-2'),
     ], style={'width': '50%', 'height': '90vh', "display": "inline-block"}, id="map"),
+    dag.AgGrid(
+            id="export-data-grid",
+            columnSize="sizeToFit",
+            columnDefs=columnDefs,
+            rowData=df.to_dict("records"),
+            csvExportParams={
+                "fileName": "ag_grid_test.csv",
+            },
+    )
 
 ])
 
@@ -44,11 +57,6 @@ app.layout = html.Div([
 @app.callback(Output("geojson", "data"), Input("edit_control", "geojson"))
 def mirror(x):
     return x
-
-# Trigger mode (edit) + action (remove all)
-@app.callback(Output("edit_control", "editToolbar"), Input("clear_all", "n_clicks"))
-def trigger_action(n_clicks):
-    return dict(mode="remove", action="clear all", n_clicks=n_clicks)  # include n_click to ensure prop changes
 
 # Upload input file
 def parse_contents(contents, filename):
@@ -71,27 +79,36 @@ def parse_contents(contents, filename):
     return df
 
 @app.callback(
-              Input('upload-data', 'contents'),
-              State('upload-data', 'filename')
-              )
+            Output("geojson-2", "data"),
+            Input('upload-data', 'contents'),
+            State('upload-data', 'filename')
+)
 def update_output(list_of_contents, list_of_names):
         if list_of_contents is not None:
             children = [
                 parse_contents(c, n) for c, n in
                 zip(list_of_contents, list_of_names)]
-        data_geopandas = gpd.GeoDataFrame(children[0])
-        # data_geopandas = data_geopandas.set_geometry(data_geopandas['geometry'])
-        return print(data_geopandas)
+        try : 
+            children[0]['geometry'] = children[0]['geometry'].apply(wkt.loads)
+            data_geopandas = gpd.GeoDataFrame(children[0],crs="EPSG:4326")
+            data_geopandas = data_geopandas.set_geometry('geometry')
+            data_geojson = geojson.loads(data_geopandas.to_json())
+        except:
+            data_geojson = None
+        return data_geojson       
 
 # Acquire state of input and extract data
-@app.callback(Input("extract_data", "n_clicks"),State("geojson", "data"))
-def trigger_extract_data(n_clicks,value):
+@app.callback(Input("extract_data", "n_clicks"),State("geojson", "data"),State("geojson-2", "data"))
+def trigger_extract_data(n_clicks,geojsondata,geojsondata2):
     ####### get the data ########
 
     ####### prepare output file #####
+    return print(geojsondata,geojsondata2) 
 
-    return print(value)
-
+# Trigger mode (edit) + action (remove all)
+@app.callback(Output("edit_control", "editToolbar"), Input("clear_all", "n_clicks"))
+def trigger_action(n_clicks):
+    return dict(mode="remove", action="clear all", n_clicks=n_clicks)  # include n_click to ensure prop changes
 
 if __name__ == '__main__':
     app.run_server()
