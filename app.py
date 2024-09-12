@@ -10,6 +10,10 @@ import pandas as pd
 import base64
 import io
 from shapely import wkt
+from geojson import Feature, Point, FeatureCollection
+import cdsapi
+import atlite   
+import cartopy.io.shapereader as shpreader
 
 # Create example app.
 app = Dash(prevent_initial_callbacks=True)
@@ -85,9 +89,6 @@ def parse_contents(contents, filename):
             Output("geojson-2", "data"),
             Input('upload-data', 'contents'),
             State('upload-data', 'filename'),
-            State('planttype-dropdown', 'value'),
-            State('yearstart-dropdown', 'value'),
-            State('yearend-dropdown', 'value'),
 )
 def update_output(list_of_contents, list_of_names):
         if list_of_contents is not None:
@@ -110,20 +111,68 @@ def update_output(list_of_contents, list_of_names):
         Input("extract_data", "n_clicks"),
         State("geojson", "data"),
         State("geojson-2", "data"),
-
+        State('planttype-dropdown', 'value'),
+        State('yearstart-dropdown', 'value'),
+        State('yearend-dropdown', 'value'),
         prevent_initial_call=True
         )
 def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,yearstart,yearend):
     ####### Merge geojson from several sources to create geodataframe ########
-    # df = pd.DataFrame({"a": [1, 2, 3, 4], "b": [2, 1, 5, 6], "c": ["x", "x", "y", "y"]})
-    
+    try :  
+        gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
+        gpd_1 = gpd_1.geometry
+        gpd_1 = gpd_1.reset_index()
+        gpd_1 = gpd_1.rename(columns ={'index' : 'name'})
+    except:
+        gpd_1 = gpd.GeoDataFrame()
+    try :    
+        gpd_2 = gpd.GeoDataFrame.from_features(geojsondata2)
+        gpd_2 = gpd_2.drop(columns=['cluster','id'])
+    except:
+        gpd_2 = gpd.GeoDataFrame()
+    gpd_data = gpd.GeoDataFrame( pd.concat([gpd_1,gpd_2], ignore_index=True))
 
     ####### Loop through year start to year end, Create cutout and extract generation profile for each year #####
+    shpfilename = shpreader.natural_earth(
+        resolution="10m", category="cultural", name="admin_0_countries"
+    )
+    reader = shpreader.Reader(shpfilename)
+    th = gpd.GeoSeries(
+        {r.attributes["NAME_EN"]: r.geometry for r in reader.records()},
+        crs={"init": "epsg:4326"},
+    ).reindex(["Thailand"])
 
-    ####### Build up output dataframe with location name in the column and timestampe along the rows ######
+    for i in range(yearstart,yearend+1,1):
+        path="\\CDS_Data\\" + str(i) + ".nc"
+        print(path)
+        cutout = atlite.Cutout(
+            path=path,
+            module="era5",
+            bounds= th.unary_union.bounds,
+            time=str(i),
+            dt = 'h',
+            # dx = 1, 
+            # dy = 1,
+        )
+        # This is where all the work happens (this can take some time, for us it took ~15 minutes).
+        cutout.prepare(['height', 'wind', 'influx', 'temperature'])
+   
+        if planttype == 'Solar' :
+            power_generation = cutout.pv(    
+            panel="CSi",
+            orientation="latitude_optimal",
+            capacity_factor=True,
+            tracking= None,
+            shapes=gpd_data.geometry
+            ) 
+
+        if planttype == 'Wind' :
+                None
+        else : None
+
 
     ####### prepare output file #####
-    return dcc.send_data_frame(output.to_csv, "output.csv")
+    return print(power_generation.to_pandas()) #dcc.send_data_frame(output.to_csv, "output.csv")
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
