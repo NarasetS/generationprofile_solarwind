@@ -38,8 +38,7 @@ app.layout = html.Div([
                 multiple=True,
             ),
     dcc.Dropdown(['Solar', 'Wind'], 'Solar', id='planttype-dropdown'),
-    dcc.Dropdown([i for i in range(2002,2021,1)], 2002, id='yearstart-dropdown'),
-    dcc.Dropdown([i for i in range(2020,2001,-1)], 2020, id='yearend-dropdown'),
+    dcc.Dropdown([i for i in range(1951,2024,1)], 2020, id='year-dropdown'),
     html.Br(),
     html.Button("Extract data", id= "extract_data"),
     dcc.Download(id="download-dataframe-csv"),
@@ -116,7 +115,7 @@ def update_output(list_of_contents, list_of_names):
         State('yearend-dropdown', 'value'),
         prevent_initial_call=True
         )
-def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,yearstart,yearend):
+def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
     ####### Merge geojson from several sources to create geodataframe ########
     try :  
         gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
@@ -142,22 +141,22 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,yearstart,y
         crs={"init": "epsg:4326"},
     ).reindex(["Thailand"])
 
-    for i in range(yearstart,yearend+1,1):
-        path="\\CDS_Data\\" + str(i) + ".nc"
-        print(path)
-        cutout = atlite.Cutout(
-            path=path,
-            module="era5",
-            bounds= th.unary_union.bounds,
-            time=str(i),
-            dt = 'h',
-            # dx = 1, 
-            # dy = 1,
-        )
-        # This is where all the work happens (this can take some time, for us it took ~15 minutes).
-        cutout.prepare(['height', 'wind', 'influx', 'temperature'])
+    
+    path="\\CDS_Data\\" + str(year) + ".nc"
+    print(path)
+    cutout = atlite.Cutout(
+        path=path,
+        module="era5",
+        bounds= th.unary_union.bounds,
+        time=str(year),
+        dt = 'h',
+        dx = 1, 
+        dy = 1,
+    )
+    # This is where all the work happens (this can take some time, for us it took ~15 minutes).
+    cutout.prepare(['height', 'wind', 'influx', 'temperature'])
    
-        if planttype == 'Solar' :
+    if planttype == 'Solar' :
             power_generation = cutout.pv(    
             panel="CSi",
             orientation="latitude_optimal",
@@ -166,9 +165,9 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,yearstart,y
             shapes=gpd_data.geometry
             ) 
 
-        if planttype == 'Wind' :
+    if planttype == 'Wind' :
                 None
-        else : None
+    else : None
 
 
     ####### prepare output file #####
