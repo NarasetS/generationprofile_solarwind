@@ -141,13 +141,17 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
         crs={"init": "epsg:4326"},
     ).reindex(["Thailand"])
 
+    ##### offset date #####
+    datestart = str(year-1) + '-12-31'
+    dateend = str(year+1) + '-01-01'
+
     path="\\CDS_Data\\" + str(year) + ".nc"
     print(path)
     cutout = atlite.Cutout(
         path=path,
         module="era5",
         bounds= th.unary_union.bounds,
-        time=str(year),
+        time= slice(datestart,dateend),
         dt = 'h',
         dx = 1, 
         dy = 1,
@@ -170,7 +174,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
 
 
     ####### prepare output file #####
-    return print(power_generation.to_pandas()) #dcc.send_data_frame(output.to_csv, "output.csv")
+    return  dcc.send_data_frame(power_generation.to_csv, "output.csv") #print(power_generation.to_pandas())
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
