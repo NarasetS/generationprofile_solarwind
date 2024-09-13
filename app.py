@@ -131,7 +131,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
         gpd_2 = gpd.GeoDataFrame()
     gpd_data = gpd.GeoDataFrame( pd.concat([gpd_1,gpd_2], ignore_index=True))
 
-    ####### Loop through year start to year end, Create cutout and extract generation profile for each year #####
+    ####### Create cutout and extract generation profile for each year #####
     shpfilename = shpreader.natural_earth(
         resolution="10m", category="cultural", name="admin_0_countries"
     )
@@ -141,7 +141,6 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
         crs={"init": "epsg:4326"},
     ).reindex(["Thailand"])
 
-    
     path="\\CDS_Data\\" + str(year) + ".nc"
     print(path)
     cutout = atlite.Cutout(
