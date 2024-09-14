@@ -117,22 +117,6 @@ def update_output(list_of_contents, list_of_names):
         prevent_initial_call=True
         )
 def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
-    ####### Merge geojson from several sources to create geodataframe ########
-    try :  
-        gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
-        gpd_1 = gpd_1.geometry
-        gpd_1 = gpd_1.reset_index()
-        gpd_1 = gpd_1.rename(columns ={'index' : 'name'})
-    except:
-        gpd_1 = gpd.GeoDataFrame()
-    try :    
-        gpd_2 = gpd.GeoDataFrame.from_features(geojsondata2)
-        gpd_2 = gpd_2.drop(columns=['cluster','id'])
-    except:
-        gpd_2 = gpd.GeoDataFrame()
-    gpd_data = gpd.GeoDataFrame( pd.concat([gpd_1,gpd_2], ignore_index=True))
-    gpd_data = gpd_data.set_index('name')
-
     ####### Create cutout and extract generation profile for each year #####
     shpfilename = shpreader.natural_earth(
         resolution="10m", category="cultural", name="admin_0_countries"
@@ -144,10 +128,10 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
     ).reindex(["Thailand"])
 
     ##### offset date #####
-    datestart = str(year) + '-01-01'
-    dateend = str(year) + '-12-31'
+    datestart = str(year-1) + '-12-31'
+    dateend = str(year+1) + '-01-01'
 
-    path="CDS_Data\\" + str(year) + ".nc"
+    path="CDS_Data/" + str(year) + ".nc"
     print(path)
     cutout = atlite.Cutout(
         path=path,
@@ -162,20 +146,50 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
     # This is where all the work happens (this can take some time, for us it took ~15 minutes).
     cutout.prepare(['height', 'wind', 'influx', 'temperature'])
    
+   ####### Merge geojson from several sources to create geodataframe ########
+    try :  
+        gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
+        gpd_1 = gpd_1.geometry
+        gpd_1 = gpd_1.reset_index()
+        gpd_1 = gpd_1.rename(columns ={'index' : 'name'})
+    except:
+        gpd_1 = gpd.GeoDataFrame()
+    try :    
+        gpd_2 = gpd.GeoDataFrame.from_features(geojsondata2)
+        gpd_2 = gpd_2.drop(columns=['cluster','id'])
+    except:
+        gpd_2 = gpd.GeoDataFrame()
+    gpd_data = gpd.GeoDataFrame( pd.concat([gpd_1,gpd_2], ignore_index=True))
+    gpd_data = gpd_data.set_geometry('geometry')
+    gpd_data = gpd_data.set_crs(epsg=4326)
+    gpd_data['center'] = gpd_data['geometry'].centroid
+    gpd_data = gpd_data.set_geometry('center')
+    gpd_data = gpd_data.drop(columns='geometry')
+    gpd_data['x'] = gpd_data.geometry.x
+    gpd_data['y'] = gpd_data.geometry.y
+    gpd_data = gpd_data.drop(columns='center')
+    gpd_data = gpd_data.set_index('name')
+
+    cells = cutout.grid
+    nearest = cutout.data.sel({"x": gpd_data.x.values, "y": gpd_data.y.values}, "nearest").coords
+    gpd_data["x"] = nearest.get("x").values
+    gpd_data["y"] = nearest.get("y").values
+    cells_generation = gpd_data.merge(cells, how="inner").rename(pd.Series(gpd_data.index))
+ 
     if planttype == 'Solar' :
             power_generation = cutout.pv(    
                 panel="CSi",
                 orientation="latitude_optimal",
                 capacity_factor=True,
                 tracking= None,
-                shapes=gpd_data.geometry
+                shapes=cells_generation.geometry
             ) 
 
     if planttype == 'Wind' :
             power_generation = cutout.wind(
                 turbine="Vestas_V112_3MW", 
                 capacity_factor=True,
-                shapes=gpd_data.geometry,
+                shapes=cells_generation.geometry,
                 )
     else : None
 
