@@ -144,8 +144,8 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
     ).reindex(["Thailand"])
 
     ##### offset date #####
-    datestart = str(year-1) + '-12-31'
-    dateend = str(year+1) + '-01-01'
+    datestart = str(year) + '-01-01'
+    dateend = str(year) + '-12-31'
 
     path="CDS_Data\\" + str(year) + ".nc"
     print(path)
@@ -156,8 +156,8 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
         # time= slice('2002-12-31','2003-01-02'),
         time= slice(datestart,dateend),
         dt = 'h',
-        dx = 1, 
-        dy = 1,
+        dx = 0.25, 
+        dy = 0.25,
     )
     # This is where all the work happens (this can take some time, for us it took ~15 minutes).
     cutout.prepare(['height', 'wind', 'influx', 'temperature'])
