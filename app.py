@@ -1,9 +1,7 @@
 import dash_leaflet as dl
 from dash import Dash, html, Output, Input, State
 from dash.exceptions import PreventUpdate
-from dash_extensions.javascript import assign
 import dash_core_components as dcc
-import dash_ag_grid as dag
 import geopandas as gpd
 import geojson
 import pandas as pd
@@ -14,6 +12,8 @@ from geojson import Feature, Point, FeatureCollection
 import cdsapi
 import atlite   
 import cartopy.io.shapereader as shpreader
+import datetime as dt
+from datetime import timedelta
 
 # Create example app.
 app = Dash(prevent_initial_callbacks=True)
@@ -39,6 +39,7 @@ app.layout = html.Div([
             ),
     dcc.Dropdown(['Solar', 'Wind'], 'Solar', id='planttype-dropdown'),
     dcc.Dropdown([i for i in range(1951,2024,1)], 2020, id='year-dropdown'),
+    dcc.Dropdown([i for i in range(-14,12,1)], 7, id='utc-dropdown'),
     html.Br(),
     html.Button("Extract data", id= "extract_data"),
     dcc.Download(id="download-dataframe-csv"),
@@ -111,11 +112,11 @@ def update_output(list_of_contents, list_of_names):
         State("geojson", "data"),
         State("geojson-2", "data"),
         State('planttype-dropdown', 'value'),
-        State('yearstart-dropdown', 'value'),
-        State('yearend-dropdown', 'value'),
+        State('year-dropdown', 'value'),
+        State('utc-dropdown','value'),
         prevent_initial_call=True
         )
-def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
+def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
     ####### Merge geojson from several sources to create geodataframe ########
     try :  
         gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
@@ -130,6 +131,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
     except:
         gpd_2 = gpd.GeoDataFrame()
     gpd_data = gpd.GeoDataFrame( pd.concat([gpd_1,gpd_2], ignore_index=True))
+    gpd_data = gpd_data.set_index('name')
 
     ####### Create cutout and extract generation profile for each year #####
     shpfilename = shpreader.natural_earth(
@@ -145,12 +147,13 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
     datestart = str(year-1) + '-12-31'
     dateend = str(year+1) + '-01-01'
 
-    path="\\CDS_Data\\" + str(year) + ".nc"
+    path="CDS_Data\\" + str(year) + ".nc"
     print(path)
     cutout = atlite.Cutout(
         path=path,
         module="era5",
         bounds= th.unary_union.bounds,
+        # time= slice('2002-12-31','2003-01-02'),
         time= slice(datestart,dateend),
         dt = 'h',
         dx = 1, 
@@ -161,20 +164,29 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
    
     if planttype == 'Solar' :
             power_generation = cutout.pv(    
-            panel="CSi",
-            orientation="latitude_optimal",
-            capacity_factor=True,
-            tracking= None,
-            shapes=gpd_data.geometry
+                panel="CSi",
+                orientation="latitude_optimal",
+                capacity_factor=True,
+                tracking= None,
+                shapes=gpd_data.geometry
             ) 
 
     if planttype == 'Wind' :
-                None
+            power_generation = cutout.wind(
+                turbine="Vestas_V112_3MW", 
+                capacity_factor=True,
+                shapes=gpd_data.geometry,
+                )
     else : None
 
-
+    output = power_generation.to_pandas()
+    output.reset_index(inplace = True)
+    output['time_utcadj'] =  output['time'] + timedelta(hours=utc)
+    output = output.drop(columns = 'time')
+    output = output.loc[output['time_utcadj'].dt.year == year]
+    output = output.set_index('time_utcadj')
     ####### prepare output file #####
-    return  dcc.send_data_frame(power_generation.to_csv, "output.csv") #print(power_generation.to_pandas())
+    return  dcc.send_data_frame(output.to_csv, "output_"+str(planttype)+"_"+str(year)+".csv") #print(power_generation.to_pandas()) 
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
