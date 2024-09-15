@@ -117,12 +117,13 @@ def update_output(list_of_contents, list_of_names):
 
 ######## Acquire state of input and extract data ###### 
 def createdatelist(year):
-    if year%4 == 0:
-        numberofdaysinyear = 366
-    else: numberofdaysinyear = 365
+    # if year%4 == 0:
+    #     numberofdaysinyear = 366
+    # else: numberofdaysinyear = 365
 
-    start_date = date(year-1, 12, 31)
-    date_list = [(start_date+timedelta(hours=24*i)).strftime('%Y-%m-%d') for i in range(numberofdaysinyear+1)]
+    start_date = date(year-1, 12,31)
+    date_list = [(start_date+timedelta(days=31*i)).strftime('%Y-%m') for i in range(13)]
+    print(date_list)
     ### create  date_list ####
     return date_list
 
@@ -175,7 +176,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     ##### loop through date list #####
     output = pd.DataFrame()
     for i in createdatelist(year) :
-        path = 'CDS_Data/' + str(i) +'_'+str(gridsize)+ ".nc"
+        path = 'CDS_Data\\' + str(i) +'_'+str(gridsize) + ".nc"
         print(path)
         cutout = atlite.Cutout(
             path=path,
@@ -209,7 +210,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
                     capacity_factor=True,
                     shapes=cells_generation.geometry,
                     )
-        else : None
+
         output_buffer = power_generation.to_pandas()
         output = pd.concat([output,output_buffer])
 
