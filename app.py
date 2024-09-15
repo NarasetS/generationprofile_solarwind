@@ -13,12 +13,13 @@ import cdsapi
 import atlite   
 import cartopy.io.shapereader as shpreader
 import datetime as dt
-from datetime import timedelta
+from datetime import timedelta, date
 
 # Create example app.
 app = Dash(prevent_initial_callbacks=True)
 app.layout = html.Div([
     # Setup a map with the edit control.
+    html.H1('This work revoles around Atlite library and CDS Data store api. API key and url are needed to process further.'),
     html.Header('Draw the area of interest or just dump a file in the box below'),
     html.Br(),
     html.Button("Remove -> Clear all", id="clear_all"),
@@ -39,12 +40,20 @@ app.layout = html.Div([
             ),
     html.Header('Select Plant Type'),
     dcc.Dropdown(['Solar', 'Wind'], 'Solar', id='planttype-dropdown'),
+
     html.Header('Select Year'),
     dcc.Dropdown([i for i in range(1951,2024,1)], 2020, id='year-dropdown'),
+
+    html.Header('Grid size (x*y)'),
+    dcc.Dropdown([0.25,0.1,0.05,0.01], 0.1, id='gridsize-dropdown'),
+
     html.Header('Select UTC Adjustment'),
     dcc.Dropdown([i for i in range(-14,12,1)], 7, id='utc-dropdown'),
+
     html.Br(),
     html.Button("Extract data", id= "extract_data"),
+    html.Header('After pressing "Extract Data", It will start checking the data stored in CDS_Data folder.(download if absent, from CDS data store)'),
+    html.Header('The processing time would relatively dependent on grid size.'),
     dcc.Download(id="download-dataframe-csv"),
     html.Br(),
     html.Br(),
@@ -55,8 +64,6 @@ app.layout = html.Div([
         dl.GeoJSON(id='geojson'),
         dl.GeoJSON(id='geojson-2'),
     ], style={'width': '80%', 'height': '90vh', "display": "inline-block"}, id="map"),
-
-
 ])
 #####################################################
 
@@ -109,6 +116,16 @@ def update_output(list_of_contents, list_of_names):
 #####################################################
 
 ######## Acquire state of input and extract data ###### 
+def createdatelist(year):
+    if year%4 == 0:
+        numberofdaysinyear = 366
+    else: numberofdaysinyear = 365
+
+    start_date = date(year-1, 12, 31)
+    date_list = [(start_date+timedelta(hours=24*i)).strftime('%Y-%m-%d') for i in range(numberofdaysinyear+1)]
+    ### create  date_list ####
+    return date_list
+
 @app.callback(
         Output("download-dataframe-csv", "data"),
         Input("extract_data", "n_clicks"),
@@ -117,9 +134,10 @@ def update_output(list_of_contents, list_of_names):
         State('planttype-dropdown', 'value'),
         State('year-dropdown', 'value'),
         State('utc-dropdown','value'),
+        State('gridsize-dropdown','value'),
         prevent_initial_call=True
         )
-def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
+def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gridsize):
     ####### Create cutout and extract generation profile for each year #####
     shpfilename = shpreader.natural_earth(
         resolution="10m", category="cultural", name="admin_0_countries"
@@ -130,25 +148,6 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
         crs={"init": "epsg:4326"},
     ).reindex(["Thailand"])
 
-    ##### offset date #####
-    datestart = str(year-1) + '-12-31'
-    dateend = str(year+1) + '-01-01'
-
-    path="CDS_Data/" + str(year) + ".nc"
-    print(path)
-    cutout = atlite.Cutout(
-        path=path,
-        module="era5",
-        bounds= th.unary_union.bounds,
-        # time= slice('2002-12-31','2003-01-02'),
-        time= slice(datestart,dateend),
-        dt = 'h',
-        dx = 0.25, 
-        dy = 0.25,
-    )
-    # This is where all the work happens (this can take some time, for us it took ~15 minutes).
-    cutout.prepare(['height', 'wind', 'influx', 'temperature'])
-   
    ####### Merge geojson from several sources to create geodataframe ########
     try :  
         gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
@@ -173,37 +172,55 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc):
     gpd_data = gpd_data.drop(columns='center')
     gpd_data = gpd_data.set_index('name')
 
-    cells = cutout.grid
-    nearest = cutout.data.sel({"x": gpd_data.x.values, "y": gpd_data.y.values}, "nearest").coords
-    gpd_data["x"] = nearest.get("x").values
-    gpd_data["y"] = nearest.get("y").values
-    cells_generation = gpd_data.merge(cells, how="inner").rename(pd.Series(gpd_data.index))
- 
-    if planttype == 'Solar' :
-            power_generation = cutout.pv(    
-                panel="CSi",
-                orientation="latitude_optimal",
-                capacity_factor=True,
-                tracking= None,
-                shapes=cells_generation.geometry
-            ) 
+    ##### loop through date list #####
+    output = pd.DataFrame()
+    for i in createdatelist(year) :
+        path = 'CDS_Data/' + str(i) +'_'+str(gridsize)+ ".nc"
+        print(path)
+        cutout = atlite.Cutout(
+            path=path,
+            module="era5",
+            bounds= th.unary_union.bounds,
+            time= i,
+            dt = 'h',
+            dx = gridsize, 
+            dy = gridsize,
+        )
+        # This is where all the work happens (this can take some time, for us it took ~15 minutes).
+        cutout.prepare(['height', 'wind', 'influx', 'temperature'])
+        cells = cutout.grid
+        nearest = cutout.data.sel({"x": gpd_data.x.values, "y": gpd_data.y.values}, "nearest").coords
+        gpd_data["x"] = nearest.get("x").values
+        gpd_data["y"] = nearest.get("y").values
+        cells_generation = gpd_data.merge(cells, how="inner").rename(pd.Series(gpd_data.index))
 
-    if planttype == 'Wind' :
-            power_generation = cutout.wind(
-                turbine="Vestas_V112_3MW", 
-                capacity_factor=True,
-                shapes=cells_generation.geometry,
-                )
-    else : None
+        if planttype == 'Solar' :
+                power_generation = cutout.pv(    
+                    panel="CSi",
+                    orientation="latitude_optimal",
+                    capacity_factor=True,
+                    tracking= None,
+                    shapes=cells_generation.geometry
+                ) 
 
-    output = power_generation.to_pandas()
+        if planttype == 'Wind' :
+                power_generation = cutout.wind(
+                    turbine="Vestas_V112_3MW", 
+                    capacity_factor=True,
+                    shapes=cells_generation.geometry,
+                    )
+        else : None
+        output_buffer = power_generation.to_pandas()
+        output = pd.concat([output,output_buffer])
+
+    # output = power_generation.to_pandas()
     output.reset_index(inplace = True)
     output['time_utcadj'] =  output['time'] + timedelta(hours=utc)
     output = output.drop(columns = 'time')
     output = output.loc[output['time_utcadj'].dt.year == year]
     output = output.set_index('time_utcadj')
     ####### prepare output file #####
-    return  dcc.send_data_frame(output.to_csv, "output_"+str(planttype)+"_"+str(year)+".csv") #print(power_generation.to_pandas()) 
+    return  dcc.send_data_frame(output.to_csv, "output_"+str(planttype)+"_"+str(year)+"_"+str(gridsize)+".csv") #print(power_generation.to_pandas()) 
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
