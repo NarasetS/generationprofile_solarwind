@@ -19,8 +19,8 @@ from datetime import timedelta, date
 app = Dash(prevent_initial_callbacks=True)
 app.layout = html.Div([
     # Setup a map with the edit control.
-    html.H1('This work revoles around Atlite library and CDS Data store api. API key and url are needed to process further.'),
-    html.Header('Draw the area of interest or just dump a file in the box below'),
+    html.H1('This work revoles around Atlite library and CDS Data store api. API key and url (as "cds_api.txt" and follow cds_api_modify_guide.txt in the directory) are needed to process further.'),
+    html.Header('Draw the area of interest or just dump a file in the box below (check file format in the directory "drop_file_format.csv")'),
     html.Br(),
     html.Button("Remove -> Clear all", id="clear_all"),
     dcc.Upload(
