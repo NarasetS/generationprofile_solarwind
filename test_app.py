@@ -45,7 +45,7 @@ app.layout = html.Div([
     dcc.Dropdown([i for i in range(1951,2024,1)], 2020, id='year-dropdown'),
 
     html.Header('Grid size (x*y)'),
-    dcc.Dropdown([0.25,0.1,0.05,0.01], 0.25, id='gridsize-dropdown'),
+    dcc.Dropdown([0.25,0.1,0.05,0.01], 0.1, id='gridsize-dropdown'),
 
     html.Header('Select UTC Adjustment'),
     dcc.Dropdown([i for i in range(-14,12,1)], 7, id='utc-dropdown'),
@@ -117,12 +117,8 @@ def update_output(list_of_contents, list_of_names):
 
 ######## Acquire state of input and extract data ###### 
 def createdatelist(year):
-    # if year%4 == 0:
-    #     numberofdaysinyear = 366
-    # else: numberofdaysinyear = 365
-
-    start_date = date(year-1, 12,31)
-    date_list = [(start_date+timedelta(days=31*i)).strftime('%Y-%m') for i in range(13)]
+    start_date = year
+    date_list = [year-1,year,year+1]
     print(date_list)
     ### create  date_list ####
     return date_list
@@ -139,7 +135,7 @@ def createdatelist(year):
         prevent_initial_call=True
         )
 def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gridsize):
-    ####### Create cutout and extract generation profile for each year #####
+    # ####### Create cutout and extract generation profile for each year #####
     shpfilename = shpreader.natural_earth(
         resolution="10m", category="cultural", name="admin_0_countries"
     )
@@ -176,7 +172,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     ##### loop through date list #####
     output = pd.DataFrame()
     for i in createdatelist(year) :
-        path = 'CDS_Data\\' + str(i) +'_'+str(gridsize) + ".nc"
+        path = 'CDS_Data\\' + str(i) + ".nc"
         print(path)
         cutout = atlite.Cutout(
             path=path,
@@ -201,7 +197,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
                     orientation="latitude_optimal",
                     capacity_factor=True,
                     tracking= None,
-                    shapes=cells_generation.geometry
+                    shapes=cells_generation.geometry,
                 ) 
 
         if planttype == 'Wind' :
