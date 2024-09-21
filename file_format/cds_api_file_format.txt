@@ -1,0 +1,2 @@
+url: https://cds-beta.climate.copernicus.eu/api
+key: 0903e01f-7630-409e-8bcf-d4562721a13d
