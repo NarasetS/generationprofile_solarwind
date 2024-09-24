@@ -23,9 +23,6 @@ country = gpd.GeoSeries(
         {r.attributes["NAME_EN"]: r.geometry for r in reader.records()},
         crs={"init": "epsg:4326"},
     )
-print(list(country.index))
-
-
 # Create example app.
 app = Dash(prevent_initial_callbacks=True)
 app.layout = html.Div([
@@ -151,7 +148,7 @@ def createdatelist(year):
         State('year-dropdown', 'value'),
         State('utc-dropdown','value'),
         State('gridsize-dropdown','value'),
-        State('country-dropdown','value')
+        State('country-dropdown','value'),
         prevent_initial_call=True
         )
 def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gridsize,country):
@@ -164,7 +161,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
         {r.attributes["NAME_EN"]: r.geometry for r in reader.records()},
         crs={"init": "epsg:4326"},
     ).reindex([country])
-
+    
    ####### Merge geojson from several sources to create geodataframe ########
     try :  
         gpd_1 = gpd.GeoDataFrame.from_features(geojsondata)
@@ -237,7 +234,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     output = output.loc[output['time_utcadj'].dt.year == year]
     output = output.set_index('time_utcadj')
     ####### prepare output file #####
-    return  dcc.send_data_frame(output.to_csv, "output_"str(country)+"_"+str(planttype)+"_"+str(year)+"_"+str(gridsize)+".csv") #print(power_generation.to_pandas()) 
+    return  dcc.send_data_frame(output.to_csv, "output_" + str(country) + "_" + str(planttype)+"_"+str(year)+"_"+str(gridsize)+".csv") #print(power_generation.to_pandas()) 
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
