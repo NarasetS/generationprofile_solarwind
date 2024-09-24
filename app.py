@@ -15,6 +15,17 @@ import cartopy.io.shapereader as shpreader
 import datetime as dt
 from datetime import timedelta, date
 
+shpfilename = shpreader.natural_earth(
+        resolution="10m", category="cultural", name="admin_0_countries"
+    )
+reader = shpreader.Reader(shpfilename)
+country = gpd.GeoSeries(
+        {r.attributes["NAME_EN"]: r.geometry for r in reader.records()},
+        crs={"init": "epsg:4326"},
+    )
+print(list(country.index))
+
+
 # Create example app.
 app = Dash(prevent_initial_callbacks=True)
 app.layout = html.Div([
@@ -46,6 +57,10 @@ app.layout = html.Div([
 
     html.Header('Grid size (x*y)'),
     dcc.Dropdown([0.25,0.1,0.05,0.01], 0.25, id='gridsize-dropdown'),
+
+
+    html.Header('Choose Country >> '),
+    dcc.Dropdown(list(country.index), 'Thailand', id='country-dropdown'),
 
     html.Header('Select UTC Adjustment'),
     dcc.Dropdown([i for i in range(-14,12,1)], 7, id='utc-dropdown'),
@@ -136,9 +151,10 @@ def createdatelist(year):
         State('year-dropdown', 'value'),
         State('utc-dropdown','value'),
         State('gridsize-dropdown','value'),
+        State('country-dropdown','value')
         prevent_initial_call=True
         )
-def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gridsize):
+def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gridsize,country):
     ####### Create cutout and extract generation profile for each year #####
     shpfilename = shpreader.natural_earth(
         resolution="10m", category="cultural", name="admin_0_countries"
@@ -147,7 +163,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     th = gpd.GeoSeries(
         {r.attributes["NAME_EN"]: r.geometry for r in reader.records()},
         crs={"init": "epsg:4326"},
-    ).reindex(["Thailand"])
+    ).reindex([country])
 
    ####### Merge geojson from several sources to create geodataframe ########
     try :  
@@ -221,7 +237,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     output = output.loc[output['time_utcadj'].dt.year == year]
     output = output.set_index('time_utcadj')
     ####### prepare output file #####
-    return  dcc.send_data_frame(output.to_csv, "output_"+str(planttype)+"_"+str(year)+"_"+str(gridsize)+".csv") #print(power_generation.to_pandas()) 
+    return  dcc.send_data_frame(output.to_csv, "output_"str(country)+"_"+str(planttype)+"_"+str(year)+"_"+str(gridsize)+".csv") #print(power_generation.to_pandas()) 
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
