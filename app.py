@@ -189,7 +189,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     ##### loop through date list #####
     output = pd.DataFrame()
     for i in createdatelist(year) :
-        path = 'CDS_Data\\' + str(i) +'_'+str(gridsize) + ".nc"
+        path = 'CDS_Data\\' + str(country) + "_" + str(i) +'_'+str(gridsize) + ".nc"
         print(path)
         cutout = atlite.Cutout(
             path=path,
