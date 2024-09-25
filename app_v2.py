@@ -54,7 +54,7 @@ app.layout = html.Div([
     dcc.Dropdown([i for i in range(1951,2024,1)], 2020, id='year-dropdown'),
 
     html.Header('Grid size (x*y)'),
-    dcc.Dropdown([0.25,0.1,0.05,0.01], 0.25, id='gridsize-dropdown'),
+    dcc.Dropdown([0.25,0.1,0.05,0.01], 0.1, id='gridsize-dropdown'),
 
 
     html.Header('Choose Country >> '),
