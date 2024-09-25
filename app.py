@@ -7,6 +7,7 @@ import geojson
 import pandas as pd
 import base64
 import io
+import numpy as np
 from shapely import wkt
 from geojson import Feature, Point, FeatureCollection
 import cdsapi
@@ -189,7 +190,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     ##### loop through date list #####
     output = pd.DataFrame()
     for i in createdatelist(year) :
-        path = 'CDS_Data\\' + str(country) + "_" + str(i) +'_km2_'+str(gridsize*100) + ".nc"
+        path = 'CDS_Data\\' + str(country) + "_" + str(i) +'_km2_'+str(int(gridsize*100)) + ".nc"
         print(path)
         cutout = atlite.Cutout(
             path=path,
