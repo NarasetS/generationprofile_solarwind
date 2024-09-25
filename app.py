@@ -189,7 +189,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     ##### loop through date list #####
     output = pd.DataFrame()
     for i in createdatelist(year) :
-        path = 'CDS_Data\\' + str(country) + "_" + str(i) +'_'+str(gridsize) + ".nc"
+        path = 'CDS_Data\\' + str(country) + "_" + str(i) +'_km2_'+str(gridsize*100) + ".nc"
         print(path)
         cutout = atlite.Cutout(
             path=path,
@@ -234,7 +234,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     output = output.loc[output['time_utcadj'].dt.year == year]
     output = output.set_index('time_utcadj')
     ####### prepare output file #####
-    return  dcc.send_data_frame(output.to_csv, "output_" + str(country) + "_" + str(planttype)+"_"+str(year)+"_"+str(gridsize)+".csv") #print(power_generation.to_pandas()) 
+    return  dcc.send_data_frame(output.to_csv, "output_" + str(country) + "_" + str(planttype)+"_"+str(year)+"_km2_"+str(gridsize*100)+".csv") #print(power_generation.to_pandas()) 
 #####################################################
 
 # Trigger mode (edit) + action (remove all)
