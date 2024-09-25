@@ -162,6 +162,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
         {r.attributes["NAME_EN"]: r.geometry for r in reader.records()},
         crs={"init": "epsg:4326"},
     ).reindex([country])
+    print(th)
     
    ####### Merge geojson from several sources to create geodataframe ########
     try :  
@@ -200,6 +201,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
             dt = 'h',
             dx = gridsize, 
             dy = gridsize,
+            chunks = {'time': 20}
         )
         # This is where all the work happens (this can take some time, for us it took ~15 minutes).
         cutout.prepare(['height', 'wind', 'influx', 'temperature'])
