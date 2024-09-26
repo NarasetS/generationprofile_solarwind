@@ -120,7 +120,14 @@ def update_output(list_of_contents, list_of_names):
             data_geopandas = data_geopandas.set_geometry('geometry')
             data_geojson = geojson.loads(data_geopandas.to_json())
         except:
-            data_geojson = None
+            try:
+                df = pd.DataFrame(children[0])
+                data_geopandas = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude),crs="EPSG:4326")
+                data_geopandas = data_geopandas.drop(columns=['latitude','longitude'])
+                data_geopandas = data_geopandas.set_geometry('geometry')
+                data_geojson = geojson.loads(data_geopandas.to_json())
+            except:
+                data_geojson = None
         return data_geojson       
 #####################################################
 
@@ -130,8 +137,8 @@ def createdatelist(year):
     #     numberofdaysinyear = 366
     # else: numberofdaysinyear = 365
 
-    start_date = date(year-1, 12,31)
-    date_list = [(start_date+timedelta(days=31*i)).strftime('%Y-%m') for i in range(13)]
+    start_date = date(year-1,1,1)
+    date_list = [(start_date+timedelta(days=370*i)).strftime('%Y') for i in range(3)]
     print(date_list)
     ### create  date_list ####
     return date_list
@@ -200,7 +207,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year):
             dy = gridsize,
         )
         # This is where all the work happens (this can take some time, for us it took ~15 minutes).
-        cutout.prepare(['height', 'wind', 'influx', 'temperature'])
+        cutout.prepare(['height', 'wind', 'influx'])
         cells = cutout.grid
         nearest = cutout.data.sel({"x": gpd_data.x.values, "y": gpd_data.y.values}, "nearest").coords
         gpd_data["x"] = nearest.get("x").values

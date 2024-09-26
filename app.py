@@ -124,8 +124,15 @@ def update_output(list_of_contents, list_of_names):
             data_geopandas = data_geopandas.set_geometry('geometry')
             data_geojson = geojson.loads(data_geopandas.to_json())
         except:
-            data_geojson = None
-        return data_geojson       
+            try:
+                df = pd.DataFrame(children[0])
+                data_geopandas = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude),crs="EPSG:4326")
+                data_geopandas = data_geopandas.drop(columns=['latitude','longitude'])
+                data_geopandas = data_geopandas.set_geometry('geometry')
+                data_geojson = geojson.loads(data_geopandas.to_json())
+            except:
+                data_geojson = None
+        return data_geojson           
 #####################################################
 
 ######## Acquire state of input and extract data ###### 
