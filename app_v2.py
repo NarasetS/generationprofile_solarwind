@@ -233,6 +233,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
                     turbine="Vestas_V112_3MW", 
                     capacity_factor=True,
                     shapes=cells_generation.geometry,
+                    add_cutout_windspeed=True,
                     )
 
         output_buffer = power_generation.to_pandas()
