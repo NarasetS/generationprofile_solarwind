@@ -48,7 +48,7 @@ app.layout = html.Div([
                 multiple=True,
             ),
     html.Header('Select Plant Type'),
-    dcc.Dropdown(['Solar', 'Wind'], 'Solar', id='planttype-dropdown'),
+    dcc.Dropdown(['Solar', 'Wind', 'Temperature'], 'Solar', id='planttype-dropdown'),
 
     html.Header('Select Year'),
     dcc.Dropdown([i for i in range(1951,2024,1)], 2020, id='year-dropdown'),
@@ -195,7 +195,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     gpd_data['y'] = gpd_data.geometry.y
     gpd_data = gpd_data.drop(columns='center')
     gpd_data = gpd_data.set_index('name')
-    print(gpd_data)
+    # print(gpd_data)
 
     ##### loop through date list #####
     output = pd.DataFrame()
@@ -219,6 +219,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
         gpd_data["x"] = nearest.get("x").values
         gpd_data["y"] = nearest.get("y").values
         cells_generation = gpd_data.merge(cells, how="inner").rename(pd.Series(gpd_data.index))
+        print(cells_generation)
 
         if planttype == 'Solar' :
                 power_generation = cutout.pv(    
@@ -236,6 +237,10 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
                     shapes=cells_generation.geometry,
                     add_cutout_windspeed=True,
                     )
+        if planttype == 'Temperature':
+                power_generation = cutout.temperature(
+                     shapes=cells_generation.geometry
+                )
 
         output_buffer = power_generation.to_pandas()
         output = pd.concat([output,output_buffer])

@@ -195,7 +195,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
     gpd_data['y'] = gpd_data.geometry.y
     gpd_data = gpd_data.drop(columns='center')
     gpd_data = gpd_data.set_index('name')
-    print(gpd_data)
+    # print(gpd_data)
 
     ##### loop through date list #####
     output = pd.DataFrame()
@@ -219,6 +219,7 @@ def trigger_extract_data(n_clicks,geojsondata,geojsondata2,planttype,year,utc,gr
         gpd_data["x"] = nearest.get("x").values
         gpd_data["y"] = nearest.get("y").values
         cells_generation = gpd_data.merge(cells, how="inner").rename(pd.Series(gpd_data.index))
+        print(cells_generation)
 
         if planttype == 'Solar' :
                 power_generation = cutout.pv(    
